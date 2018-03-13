@@ -1,11 +1,14 @@
 pragma solidity ^0.4.17;
 
 import "./EIP20Interface.sol";
+import "./mystorage.sol";
 
 contract MToken is EIP20Interface {
 
+    MyStorage myStorage;
     uint256 constant private MAX_UINT256 = 2**256 - 1;
-    mapping (address => uint256) public balances;
+    // Following two moved to MyStorage
+    // mapping (address => uint256) public Balances;
     // mapping (address => mapping (address => uint256)) public allowed;
 
     string public name;
@@ -13,25 +16,27 @@ contract MToken is EIP20Interface {
     string public symbol = 'MTOK';
 
     function MToken(
-        uint256 _initialAmount,
         string _tokenName,
         uint8 _decimalUnits,
-        string _tokenSymbol
+        string _tokenSymbol,
+        address myStorageAddress
     ) public
     {
-        balances[msg.sender] = _initialAmount;  // Give the creator all initial tokens
-        totalSupply = _initialAmount;           // Update total supply
         name = _tokenName;                      // Set the name for display purposes
         decimals = _decimalUnits;               // Amount of decimals for display purposes
         symbol = _tokenSymbol;                  // Set the symbol for display purposes
+
+        myStorage = MyStorage(myStorageAddress);
+        // We can't do this here, cause we've not associated ourselves with Storage
+        // So we won't be able to update the Storage data.
+        // myStorage.setBalance(msg.sender, _initialAmount); // Give the creator all initial tokens
+    }
+    function getTotalSupply() public constant returns (uint256) {
+      return myStorage.getTotalSupply();
     }
 
     function balanceOf(address _owner) public view returns (uint256 balance) {
-        return balances[_owner];
-    }
-
-    function getTotalSupply() public constant returns (uint256) {
-        return totalSupply;
+      return myStorage.getBalance(_owner);
     }
 
     /**
@@ -39,20 +44,20 @@ contract MToken is EIP20Interface {
      */
     function _transfer(address _from, address _to, uint _value) internal returns (bool) {
         // Prevent transfer to 0x0 address. Use burn() instead
-        require(_to != 0x0);
+        // require(_to != 0x0);
         // Check if the sender has enough
-        require(balances[_from] >= _value);
+        require(myStorage.getBalance(_from) >= _value);
         // Check for overflows
-        require(balances[_to] + _value > balances[_to]);
+        require(myStorage.getBalance(_to) + _value > myStorage.getBalance(_to));
         // Save this for an assertion in the future
-        uint previousBalances = balances[_from] + balances[_to];
+        uint prevBal = myStorage.getBalance(_from) + myStorage.getBalance(_to);
         // Subtract from the sender
-        balances[_from] -= _value;
+        myStorage.setBalance(_from, myStorage.getBalance(_from) - _value);
         // Add the same to the recipient
-        balances[_to] += _value;
+        myStorage.setBalance(_to, myStorage.getBalance(_to) + _value);
         Transfer(_from, _to, _value);
         // Asserts are used to use static analysis to find bugs in your code. They should never fail
-        assert(balances[_from] + balances[_to] == previousBalances);
+        assert(myStorage.getBalance(_from) + myStorage.getBalance(_to) == prevBal);
 
         return true;
     }
@@ -94,11 +99,11 @@ contract MToken is EIP20Interface {
      * @param _value the amount of money to burn
      */
     function burn(uint256 _value) public returns (bool success) {
-        require(balances[msg.sender] >= _value);   // Check if the sender has enough
-        balances[msg.sender] -= _value;            // Subtract from the sender
-        totalSupply -= _value;                      // Updates totalSupply
-        Burn(msg.sender, _value);
-        return true;
+      require(myStorage.getBalance(msg.sender) >= _value);   // Check if the sender has enough
+      myStorage.setBalance(msg.sender, myStorage.getBalance(msg.sender) - _value);
+      myStorage.setTotalSupply(myStorage.getTotalSupply() - _value);
+      Burn(msg.sender, _value);
+      return true;
     }
 
     /**
@@ -110,11 +115,11 @@ contract MToken is EIP20Interface {
      * @param _value the amount of money to burn
      */
     function burnFrom(address _from, uint256 _value) public returns (bool success) {
-        require(balances[_from] >= _value);                // Check if the targeted balance is enough
+      require(myStorage.getBalance(_from) >= _value);                // Check if the targeted balance is enough
         // require(_value <= allowed[_from][msg.sender]);    // Check allowance
-        balances[_from] -= _value;                         // Subtract from the targeted balance
+        myStorage.setBalance(_from, myStorage.getBalance(_from) - _value);
         // allowed[_from][msg.sender] -= _value;             // Subtract from the sender's allowance
-        totalSupply -= _value;                              // Update totalSupply
+        myStorage.setTotalSupply(myStorage.getTotalSupply() - _value);
         Burn(_from, _value);
         return true;
     }
@@ -124,8 +129,8 @@ contract MToken is EIP20Interface {
     //function mintToken(address target, uint256 mintedAmount) onlyOwner {
     function mintToken(address _target,
                        uint256 _mintedAmount) public returns (bool) {
-      balances[_target] += _mintedAmount;
-      totalSupply += _mintedAmount;
+      myStorage.setBalance(_target, myStorage.getBalance(_target) + _mintedAmount);
+      myStorage.setTotalSupply(myStorage.getTotalSupply() + _mintedAmount);
       // We need to generate Transfer event probably
       return true;
     }
