@@ -44,7 +44,11 @@ contract MToken is EIP20Interface {
      */
     function _transfer(address _from, address _to, uint _value) internal returns (bool) {
         // Prevent transfer to 0x0 address. Use burn() instead
-        // require(_to != 0x0);
+
+        // Comment and uncomment the following line to test whether deploying
+        // this contract retains the "data"
+        require(_to != 0x0);
+
         // Check if the sender has enough
         require(myStorage.getBalance(_from) >= _value);
         // Check for overflows
