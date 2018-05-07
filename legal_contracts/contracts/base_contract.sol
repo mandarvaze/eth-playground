@@ -17,15 +17,20 @@ contract LegalContract {
 
     uint256 public startDate;
 
-    function LegalContract(string _contractName, address _owner) public {
+    function LegalContract(string _contractName) public {
         name = _contractName;
         // if one owner then uncomment following, and comment the mapping
         // owner = _owner;
-        owners[_owner] = true;
+        owners[msg.sender] = true;
     }
 
     function addParty(address _address) onlyOwner public {
       parties[_address] = true;
+    }
+
+    // For testing only. Do we need this later ?
+    function isParty(address _addr) constant public returns (bool) {
+      return parties[_addr] == true;
     }
 
     modifier onlyParty() {

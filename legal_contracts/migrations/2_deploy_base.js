@@ -1,5 +1,5 @@
 var LegalContract = artifacts.require("LegalContract");
 
 module.exports = function(deployer) {
-  deployer.deploy(LegalContract);
+  deployer.deploy(LegalContract, "Legal Contract");
 };
