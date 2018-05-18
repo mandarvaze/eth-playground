@@ -1,40 +1,52 @@
 pragma solidity ^0.4.0;
 
 contract LegalContract {
-    string public name;
 
+  struct contractData {
+    string name;
     // Only the parties are allowed to sign
     mapping(address => bool) parties;
     mapping(address => uint) signatures;
 
-    bool public isActive = false;
-    string public docURL; // IPFS URL to the docx or PDF
+    bool isActive;
+    string docURL; // IPFS URL to the docx or PDF
 
-    // Should there be only one owner or multiple ?
-    // if one owner then uncomment following, and comment the mapping
-    // address owner;
-    mapping(address => bool) owners;
+    // commenting for now, till we figure out how to handle this.
+    // uint256 startDate;
+  }
 
-    uint256 public startDate;
+  // Should there be only one owner or multiple ?
+  // if one owner then uncomment following, and comment the mapping
+  // address owner;
+  mapping(address => bool) owners;
 
-    function LegalContract(string _contractName) public {
-        name = _contractName;
+
+  mapping(uint => contractData) allContracts;
+
+    function LegalContract() public {
         // if one owner then uncomment following, and comment the mapping
         // owner = _owner;
         owners[msg.sender] = true;
     }
 
-    function addParty(address _address) onlyOwner public {
-      parties[_address] = true;
+    // Should contract_id be calculated here ?
+    function addContract(uint contract_id, string _contractName) onlyOwner {
+      var newContract = contractData(_contractName, false, "");
+      allContracts[contract_id] = newContract;
+    }
+
+    function addParty(uint contract_id, address _address) onlyOwner public {
+      allContracts[contract_id].parties[_address] = true;
     }
 
     // For testing only. Do we need this later ?
-    function isParty(address _addr) constant public returns (bool) {
-      return parties[_addr] == true;
+    function isParty(uint contract_id, address _addr) constant public returns (bool) {
+      return allContracts[contract_id].parties[_addr] == true;
     }
 
-    modifier onlyParty() {
-      require(parties[msg.sender] == true);
+    modifier onlyIfParty(uint contract_id) {
+      if (!isParty(contract_id, msg.sender))
+        throw;
       _;
     }
 
@@ -46,26 +58,24 @@ contract LegalContract {
       _;
     }
 
-    modifier ifActive() {
-      require(isActive == true);
+    modifier ifNotActive(uint contract_id) {
+      require(allContracts[contract_id].isActive == false);
       _;
     }
 
-    function setDocURL(string _url) onlyOwner public {
-      // Once the contract is active, we can not change the document
-      require(isActive == false);
-      docURL = _url;
+    function setDocURL(uint contract_id, string _url) onlyOwner ifNotActive(contract_id) public {
+      allContracts[contract_id].docURL = _url;
     }
 
-    function getDocURL() onlyParty view public  returns (string){
-      return(docURL);
+    function getDocURL(uint contract_id) onlyIfParty(contract_id) view public returns (string){
+      return(allContracts[contract_id].docURL);
     }
 
-    function setActive() onlyOwner public {
-      isActive = true;
+    function setActive(uint contract_id) onlyOwner public {
+      allContracts[contract_id].isActive = true;
     }
 
-    function Sign() onlyParty public returns(bool) {
-      signatures[msg.sender] = now;
+    function Sign(uint contract_id) onlyIfParty(contract_id) public returns(bool) {
+      allContracts[contract_id].signatures[msg.sender] = now;
     }
 }
