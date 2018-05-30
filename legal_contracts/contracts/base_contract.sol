@@ -1,15 +1,19 @@
-pragma solidity ^0.4.0;
+pragma solidity ^0.4.17;
 
 contract LegalContract {
 
+  enum Status { Inactive, Active, Terminated, Expired, Closed }
   struct contractData {
-    string name;
+    string title; // Human readable title
+
     // Only the parties are allowed to sign
     mapping(address => bool) parties;
+
+    // Keeps track of who signed and when
     mapping(address => uint) signatures;
 
-    bool isActive;
-    string docURL; // IPFS URL to the docx or PDF
+    Status status; // Some operations are allowed only on Active contracts
+    string docURL; // IPFS URL to the scanned copy
 
     // commenting for now, till we figure out how to handle this.
     // uint256 startDate;
@@ -30,8 +34,8 @@ contract LegalContract {
     }
 
     // Should contract_id be calculated here ?
-    function addContract(uint contract_id, string _contractName) onlyOwner {
-      var newContract = contractData(_contractName, false, "");
+    function addContract(uint contract_id, string _contractName) onlyOwner public {
+      var newContract = contractData(_contractName, Status.Inactive, "");
       allContracts[contract_id] = newContract;
     }
 
@@ -45,8 +49,7 @@ contract LegalContract {
     }
 
     modifier onlyIfParty(uint contract_id) {
-      if (!isParty(contract_id, msg.sender))
-        throw;
+      require (isParty(contract_id, msg.sender) == true);
       _;
     }
 
@@ -59,7 +62,7 @@ contract LegalContract {
     }
 
     modifier ifNotActive(uint contract_id) {
-      require(allContracts[contract_id].isActive == false);
+      require(allContracts[contract_id].status == Status.Inactive);
       _;
     }
 
@@ -71,8 +74,20 @@ contract LegalContract {
       return(allContracts[contract_id].docURL);
     }
 
-    function setActive(uint contract_id) onlyOwner public {
-      allContracts[contract_id].isActive = true;
+    function setStatus(uint contract_id, string _status) onlyOwner public {
+      Status status = Status.Inactive;
+
+      if (keccak256(_status) ==keccak256("Active")) {
+        status = Status.Active;
+      } else if (keccak256(_status) == keccak256('Terminated')) {
+          status = Status.Terminated;
+      } else if (keccak256(_status) == keccak256('Expired')) {
+            status = Status.Expired;
+      } else if (keccak256(_status) == keccak256('Closed')) {
+              status = Status.Closed;
+      }
+
+      allContracts[contract_id].status = status;
     }
 
     function Sign(uint contract_id) onlyIfParty(contract_id) public returns(bool) {

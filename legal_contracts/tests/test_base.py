@@ -70,7 +70,7 @@ def test_setactive(chain):
     contract_ID = 231;
     legal.transact().addContract(contract_ID, "Active Contract")
     # Set the contract as active
-    legal.transact().setActive(contract_ID)
+    legal.transact().setStatus(contract_ID, "Active")
 
     # Now that contract is active, you can't change the document URL
     with pytest.raises(TransactionFailed):
